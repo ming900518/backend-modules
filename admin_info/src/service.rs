@@ -10,11 +10,7 @@ use sqlx::{Error, Pool, Postgres};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use base_library::{
-    create_authorization_err, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time,
-    pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp,
-    INTERNAL_SERVER_ERROR_MSG, KEYS, UNPROCESSABLE_ENTITY_MSG,
-};
+use base_library::{create_authorization_err, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time, pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, INTERNAL_SERVER_ERROR_MSG, KEYS, UNPROCESSABLE_ENTITY_MSG, Token};
 
 use crate::default_fallback;
 
@@ -65,13 +61,14 @@ struct AdminInfo {
 
 /// 查詢管理員資訊
 async fn query(
+    Token(_): Token,
     Extension(ref db): Extension<Pool<Postgres>>,
-    Path(uuid): Path<Uuid>,
+    Path(search_uuid): Path<Uuid>,
 ) -> impl IntoResponse {
     match sqlx::query_as!(
         AdminInfo,
         "select * from backendmodulesdb.admin_info where uuid = $1",
-        uuid
+        search_uuid
     )
     .fetch_one(db)
     .await
@@ -83,6 +80,7 @@ async fn query(
 
 /// 查詢管理員列表（分頁查詢，無提供參數則使用預設值）
 async fn list(
+    Token(_): Token,
     Extension(ref db): Extension<Pool<Postgres>>,
     Query(params): Query<PaginationParams>,
 ) -> impl IntoResponse {
@@ -116,6 +114,7 @@ async fn list(
 
 /// 儲存管理員資訊（有提供UUID的情況更新，無則新增）
 async fn save(
+    Token(_): Token,
     Extension(ref db): Extension<Pool<Postgres>>,
     CustomJsonRequest(params): CustomJsonRequest<AdminInfo>,
 ) -> impl IntoResponse {
@@ -197,6 +196,7 @@ async fn save(
 
 /// 移除管理員
 async fn remove(
+    Token(_): Token,
     Extension(ref db): Extension<Pool<Postgres>>,
     Path(uuid): Path<Uuid>,
 ) -> impl IntoResponse {

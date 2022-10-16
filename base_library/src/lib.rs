@@ -127,8 +127,11 @@ pub struct Claims {
     pub exp: u64,
 }
 
+#[derive(Deserialize)]
+pub struct Token (pub Claims);
+
 #[async_trait]
-impl<S> FromRequestParts<S> for Claims
+impl<S> FromRequestParts<S> for Token
 where
     S: Send + Sync,
 {
@@ -139,10 +142,15 @@ where
             TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
                 .await
                 .map_err(|_| create_authorization_err())?;
-        let token_data = decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default())
+        let token_data = decode::<Token>(bearer.token(), &KEYS.decoding, &Validation::default())
             .map_err(|_| create_authorization_err())?;
 
-        Ok(token_data.claims)
+        if token_data.claims.0.exp < SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() {
+            Err(create_authorization_err())
+        } else {
+            Ok(token_data.claims)
+        }
+
     }
 }
 
