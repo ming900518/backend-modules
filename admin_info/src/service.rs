@@ -6,32 +6,34 @@ use axum::{Extension, Json, Router};
 use jsonwebtoken::{encode, Header};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{Error, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use base_library::{create_authorization_err, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time, pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, INTERNAL_SERVER_ERROR_MSG, KEYS, UNPROCESSABLE_ENTITY_MSG, Token};
+use base_library::{
+    err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time,
+    pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, Token, KEYS,
+};
 
 use crate::default_fallback;
 
 pub fn router() -> Router {
-    Router::new()
-        .nest(
-            "/admin",
-            Router::new()
-                .route("/list", get(list))
-                .route("/query/:uuid", get(query))
-                .route("/save", post(save))
-                .route("/delete/:uuid", delete(remove))
-                .route("/login", post(login))
-                .fallback(default_fallback),
-        )
+    Router::new().nest(
+        "/admin",
+        Router::new()
+            .route("/list", get(list))
+            .route("/query/:uuid", get(query))
+            .route("/save", post(save))
+            .route("/delete/:uuid", delete(remove))
+            .route("/login", post(login))
+            .fallback(default_fallback),
+    )
 }
 
 #[derive(Deserialize)]
 struct LoginReq {
-    account: String,
-    password: String,
+    account: Option<String>,
+    password: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, sqlx::FromRow)]
@@ -217,22 +219,18 @@ async fn login(
     Extension(ref db): Extension<Pool<Postgres>>,
     Json(request): Json<LoginReq>,
 ) -> impl IntoResponse {
-    let account_empty = request.account.is_empty();
-    let password_empty = request.password.is_empty();
+    let account_empty = request.account.is_none();
+    let password_empty = request.password.is_none();
     if account_empty || password_empty {
-        return Err((
+        return Err(err_json_gen(
             StatusCode::UNPROCESSABLE_ENTITY,
-            Json::from(json!(format!(
-                "{}\nReason: {}",
-                UNPROCESSABLE_ENTITY_MSG,
-                (if account_empty && password_empty {
-                    "Both account and password is empty."
-                } else if account_empty {
-                    "Account is empty."
-                } else {
-                    "Password is empty."
-                })
-            ))),
+            if account_empty && password_empty {
+                Some("Both account and password is empty.".to_string())
+            } else if account_empty {
+                Some("Account is empty.".to_string())
+            } else {
+                Some("Password is empty.".to_string())
+            },
         ));
     }
     match sqlx::query_as!(
@@ -246,16 +244,22 @@ async fn login(
         Ok(admin_vec) => {
             let successful_count = admin_vec
                 .iter()
-                .filter(|admin_info| admin_info.login_password == request.password)
+                .filter(|admin_info| admin_info.login_password == request.password.clone().unwrap())
                 .filter(|admin_info| admin_info.account_status)
                 .count();
             if successful_count > 1 {
-                Err((
+                Err(err_json_gen(
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Json::from(json!(format!("{}\nReason: More than one record passed authorization, which is probably a bug.", INTERNAL_SERVER_ERROR_MSG))),
+                    Some(
+                        "More than one record passed authorization, which is probably a bug."
+                            .to_string(),
+                    ),
                 ))
             } else if successful_count == 0 {
-                Err(create_authorization_err())
+                Err(err_json_gen(
+                    StatusCode::UNAUTHORIZED,
+                    Some("Couldn't found your account.".to_string()),
+                ))
             } else {
                 let claims = Claims {
                     uuid: admin_vec.first().unwrap().uuid.to_owned(),
@@ -263,19 +267,13 @@ async fn login(
                 };
                 match encode(&Header::default(), &claims, &KEYS.encoding) {
                     Ok(token) => Ok((StatusCode::OK, token)),
-                    Err(error) => Err((
+                    Err(error) => Err(err_json_gen(
                         StatusCode::INTERNAL_SERVER_ERROR,
-                        Json::from(json!(format!(
-                            "{}\nReason: {}",
-                            INTERNAL_SERVER_ERROR_MSG, error
-                        ))),
+                        Some(error.to_string()),
                     )),
                 }
             }
         }
-        Err(error) => Err(match error {
-            Error::RowNotFound => create_authorization_err(),
-            _ => get_db_err(error),
-        }),
+        Err(error) => Err(get_db_err(error)),
     }
 }

@@ -29,42 +29,21 @@ pub const DEFAULT_FALLBACK_HTML: &str = r#"<!DOCTYPE html>
 </html>
 "#;
 
-pub const UNAUTHORIZED_MSG: &str = r#"401 Unauthorized
-This server could not verify that you are authorized to access the document requested.
-Either you supplied the wrong credentials (e.g., bad password), or server doesn't understand how to supply the credentials required.
-"#;
+pub const BAD_REQUEST_MSG: &str = "You sent a request that this server could not understand.";
 
-pub const BAD_REQUEST_MSG: &str = r#"400 Bad Request
-You sent a request that this server could not understand.
-"#;
+pub const UNAUTHORIZED_MSG: &str = "This server could not verify that you are authorized to access the document requested. Either you supplied the wrong credentials (e.g., bad password), or server doesn't understand how to supply the credentials required.";
 
-pub const NOT_FOUND_MSG: &str = r#"404 Not Found
-The requested resources was not found on this server.
-"#;
+pub const NOT_FOUND_MSG: &str = "The requested resources was not found on this server.";
 
-pub const UNSUPPORTED_MEDIA_TYPE_MSG: &str = r#"415 Unsupported Media Type
-The server refused this request because the request entity is in a format not supported by the requested resource for the requested method.
-"#;
+pub const UNSUPPORTED_MEDIA_TYPE_MSG: &str = "The server refused this request because the request entity is in a format not supported by the requested resource for the requested method.";
 
-pub const UNPROCESSABLE_ENTITY_MSG: &str = r#"422 Unprocessable Entity
-The server understands the content type of the request entity, but it was unable to process the contained instructions.
-"#;
+pub const UNPROCESSABLE_ENTITY_MSG: &str = "The server understands the content type of the request entity, but it was unable to process the contained instructions.";
 
-pub const SERVICE_UNAVAILABLE_MSG: &str = r#"503 Service Unavailable
-The server is temporarily unable to service your request due to maintenance downtime or capacity problems.
-Please try again later.
-Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.
-"#;
+pub const SERVICE_UNAVAILABLE_MSG: &str = "The server is temporarily unable to service your request due to maintenance downtime or capacity problems. Please try again later. Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.";
 
-pub const GATEWAY_TIMEOUT_MSG: &str = r#"504 Gateway Timeout
-The server didn't respond in time.
-Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.
-"#;
+pub const GATEWAY_TIMEOUT_MSG: &str = "The server didn't respond in time. Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.";
 
-pub const INTERNAL_SERVER_ERROR_MSG: &str = r#"500 Internal Server Error
-The server encountered an internal error or misconfiguration and was unable to complete your request.
-Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.
-"#;
+pub const INTERNAL_SERVER_ERROR_MSG: &str = "The server encountered an internal error or misconfiguration and was unable to complete your request. Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.";
 
 pub static KEYS: Lazy<Keys> = Lazy::new(|| {
     let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "7W0nwzmIeFBj6gd-tZpwHw7tTZ8KJ9vp0fvhU9chRqcD74dPJy_KV_cqxFyjpmvEC0AJSENbMC5Pq03BfIA4mLR3pd_h1vKoB4mestDn0cx6gKULZXBVSTa3fUdvxGzDxY_IDRUUlpGRWp6loprqyvliO8aw0BzkN2BPD8qRN8M".to_owned());
@@ -128,7 +107,7 @@ pub struct Claims {
 }
 
 #[derive(Deserialize)]
-pub struct Token (pub Claims);
+pub struct Token(pub Claims);
 
 #[async_trait]
 impl<S> FromRequestParts<S> for Token
@@ -141,47 +120,136 @@ where
         let TypedHeader(Authorization(bearer)) =
             TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
                 .await
-                .map_err(|_| create_authorization_err())?;
+                .map_err(|_| {
+                    err_json_gen(
+                        StatusCode::UNAUTHORIZED,
+                        Some("Unable to extract token from request. Please log in.".to_string()),
+                    )
+                })?;
         let token_data = decode::<Token>(bearer.token(), &KEYS.decoding, &Validation::default())
-            .map_err(|_| create_authorization_err())?;
+            .map_err(|_| {
+                err_json_gen(
+                    StatusCode::UNAUTHORIZED,
+                    Some("Unable to parse token.".to_string()),
+                )
+            })?;
 
-        if token_data.claims.0.exp < SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() {
-            Err(create_authorization_err())
+        if token_data.claims.0.exp
+            < SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        {
+            Err(err_json_gen(
+                StatusCode::UNAUTHORIZED,
+                Some("Token expired, please log in again.".to_string()),
+            ))
         } else {
             Ok(token_data.claims)
         }
+    }
+}
 
+pub fn err_json_gen(status_code: StatusCode, reason: Option<String>) -> (StatusCode, Json<Value>) {
+    #[derive(Serialize)]
+    struct ErrJson {
+        code: u16,
+        description: String,
+        message: String,
+        reason: Option<String>,
+    }
+
+    impl ErrJson {
+        fn new(status_code: StatusCode, message: String, reason: Option<String>) -> ErrJson {
+            ErrJson {
+                code: status_code.as_u16(),
+                description: status_code.canonical_reason().unwrap().to_string(),
+                message,
+                reason,
+            }
+        }
+    }
+
+    match status_code {
+        StatusCode::UNAUTHORIZED => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                UNAUTHORIZED_MSG.to_string(),
+                reason
+            ))),
+        ),
+        StatusCode::UNPROCESSABLE_ENTITY => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                UNPROCESSABLE_ENTITY_MSG.to_string(),
+                reason
+            ))),
+        ),
+        StatusCode::UNSUPPORTED_MEDIA_TYPE => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                UNSUPPORTED_MEDIA_TYPE_MSG.to_string(),
+                reason
+            ))),
+        ),
+        StatusCode::NOT_FOUND => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                NOT_FOUND_MSG.to_string(),
+                reason
+            ))),
+        ),
+        StatusCode::BAD_REQUEST => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                BAD_REQUEST_MSG.to_string(),
+                reason
+            ))),
+        ),
+        StatusCode::GATEWAY_TIMEOUT => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                GATEWAY_TIMEOUT_MSG.to_string(),
+                reason
+            ))),
+        ),
+        StatusCode::SERVICE_UNAVAILABLE => (
+            status_code,
+            Json::from(json!(ErrJson::new(
+                status_code,
+                SERVICE_UNAVAILABLE_MSG.to_string(),
+                reason
+            ))),
+        ),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json::from(json!(ErrJson::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                INTERNAL_SERVER_ERROR_MSG.to_string(),
+                reason
+            ))),
+        ),
     }
 }
 
 pub fn get_db_err(error: Error) -> (StatusCode, Json<Value>) {
     match error {
         Error::RowNotFound | Error::ColumnNotFound(_) => {
-            (StatusCode::NOT_FOUND, Json::from(json!(NOT_FOUND_MSG)))
+            err_json_gen(StatusCode::NOT_FOUND, Some(error.to_string()))
         }
         Error::TypeNotFound { .. } | Error::ColumnIndexOutOfBounds { .. } => {
-            (StatusCode::BAD_REQUEST, Json::from(json!(BAD_REQUEST_MSG)))
+            err_json_gen(StatusCode::BAD_REQUEST, Some(error.to_string()))
         }
-        Error::PoolTimedOut => (
-            StatusCode::GATEWAY_TIMEOUT,
-            Json::from(json!(GATEWAY_TIMEOUT_MSG)),
-        ),
-        Error::PoolClosed => (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json::from(json!(SERVICE_UNAVAILABLE_MSG)),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json::from(json!(INTERNAL_SERVER_ERROR_MSG)),
-        ),
+        Error::PoolTimedOut => err_json_gen(StatusCode::GATEWAY_TIMEOUT, Some(error.to_string())),
+        Error::PoolClosed => err_json_gen(StatusCode::SERVICE_UNAVAILABLE, Some(error.to_string())),
+        _ => err_json_gen(StatusCode::INTERNAL_SERVER_ERROR, Some(error.to_string())),
     }
-}
-
-pub fn create_authorization_err() -> (StatusCode, Json<Value>) {
-    (
-        StatusCode::UNAUTHORIZED,
-        Json::from(json!(UNAUTHORIZED_MSG)),
-    )
 }
 
 #[derive(Deserialize)]
