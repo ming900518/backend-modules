@@ -1,7 +1,7 @@
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 use axum::{Extension, Json, Router};
 use jsonwebtoken::{encode, Header};
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ pub fn router() -> Router {
         Router::new()
             .route("/list", get(list))
             .route("/query/:uuid", get(query))
-            .route("/save", post(save))
+            .route("/save", put(save))
             .route("/delete/:uuid", delete(remove))
             .route("/login", post(login))
             .fallback(default_fallback),
@@ -120,10 +120,19 @@ async fn save(
     Extension(ref db): Extension<Pool<Postgres>>,
     CustomJsonRequest(params): CustomJsonRequest<AdminInfo>,
 ) -> impl IntoResponse {
-    let query = if params.uuid == Uuid::default() {
-        sqlx::query_as!(
-            AdminInfo,
-            r#"
+    if params.uuid == Uuid::default() {
+        match sqlx::query!(
+            "select count(*) from backendmodulesdb.admin_info where login_account = $1",
+            params.login_account
+        )
+        .fetch_one(db)
+        .await
+        {
+            Ok(record) => {
+                if record.count.unwrap() == 0 {
+                    let query = sqlx::query_as!(
+                        AdminInfo,
+                        r#"
             insert into backendmodulesdb.admin_info (
                 uuid,
                 login_account,
@@ -149,21 +158,37 @@ async fn save(
                 $10
             ) returning *;
         "#,
-            Uuid::from(new_uuid_v1()),
-            params.login_account,
-            params.login_password,
-            params.account_rule,
-            params.account_status,
-            params.user_name,
-            params.user_email,
-            params.note,
-            params.creation_timestamp,
-            params.update_timestamp
-        )
-        .fetch_one(db)
-        .await
+                        Uuid::from(new_uuid_v1()),
+                        params.login_account,
+                        params.login_password,
+                        params.account_rule,
+                        params.account_status,
+                        params.user_name,
+                        params.user_email,
+                        params.note,
+                        params.creation_timestamp,
+                        params.update_timestamp
+                    )
+                    .fetch_one(db)
+                    .await;
+                    match query {
+                        Ok(result) => Ok(Json::from(json!(result))),
+                        Err(error) => Err(get_db_err(error)),
+                    }
+                } else {
+                    Err(err_json_gen(
+                        StatusCode::CONFLICT,
+                        Some(
+                            "Account with same name existed, please specify another name."
+                                .to_string(),
+                        ),
+                    ))
+                }
+            }
+            Err(error) => Err(get_db_err(error)),
+        }
     } else {
-        sqlx::query_as!(
+        let query = sqlx::query_as!(
             AdminInfo,
             r#"
         update backendmodulesdb.admin_info
@@ -188,11 +213,11 @@ async fn save(
             params.update_timestamp
         )
         .fetch_one(db)
-        .await
-    };
-    match query {
-        Ok(result) => Ok(Json::from(json!(result))),
-        Err(error) => Err(get_db_err(error)),
+        .await;
+        match query {
+            Ok(result) => Ok(Json::from(json!(result))),
+            Err(error) => Err(get_db_err(error)),
+        }
     }
 }
 

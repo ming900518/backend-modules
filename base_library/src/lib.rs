@@ -228,9 +228,9 @@ pub fn err_json_gen(status_code: StatusCode, reason: Option<String>) -> (StatusC
             ))),
         ),
         _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
+            status_code,
             Json::from(json!(ErrJson::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
+                status_code,
                 INTERNAL_SERVER_ERROR_MSG.to_string(),
                 reason
             ))),
