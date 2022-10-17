@@ -74,7 +74,7 @@ where
     B: Send + 'static,
     T: Send,
 {
-    type Rejection = (StatusCode, Json<String>);
+    type Rejection = (StatusCode, Json<Value>);
 
     async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
         let (parts, body) = req.into_parts();
@@ -83,18 +83,12 @@ where
         match axum::Json::<T>::from_request(req, state).await {
             Ok(value) => Ok(Self(value.0)),
             Err(rejection) => {
-                let error = match &rejection {
-                    JsonRejection::JsonDataError(_) => {
-                        (StatusCode::UNPROCESSABLE_ENTITY, UNPROCESSABLE_ENTITY_MSG)
-                    }
-                    JsonRejection::JsonSyntaxError(_) => (StatusCode::BAD_REQUEST, BAD_REQUEST_MSG),
-                    JsonRejection::MissingJsonContentType(_) => (
-                        StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                        UNSUPPORTED_MEDIA_TYPE_MSG,
-                    ),
-                    _ => (StatusCode::INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MSG),
-                };
-                Err((error.0, Json::from(error.1.to_string())))
+                match &rejection {
+                    JsonRejection::JsonDataError(_) => Err(err_json_gen(StatusCode::UNPROCESSABLE_ENTITY, None)),
+                    JsonRejection::JsonSyntaxError(_) => Err(err_json_gen(StatusCode::BAD_REQUEST, None)),
+                    JsonRejection::MissingJsonContentType(_) => Err(err_json_gen(StatusCode::UNSUPPORTED_MEDIA_TYPE, None)),
+                    _ => Err(err_json_gen(StatusCode::INTERNAL_SERVER_ERROR, None)),
+                }
             }
         }
     }
