@@ -153,16 +153,20 @@ async fn login(
                     Some("Couldn't found your account.".to_string()),
                 ))
             } else {
-                let claims = Claims {
-                    uuid: admin_vec.first().unwrap().uuid.to_owned(),
-                    exp: get_jwt_exp_timestamp(),
-                };
-                match encode(&Header::default(), &claims, &USER_KEY.encoding) {
-                    Ok(token) => Ok((StatusCode::OK, token)),
-                    Err(error) => Err(err_json_gen(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Some(error.to_string()),
-                    )),
+                return if admin_vec.first().unwrap().account_status {
+                    let claims = Claims {
+                        uuid: admin_vec.first().unwrap().uuid.to_owned(),
+                        exp: get_jwt_exp_timestamp(),
+                    };
+                    match encode(&Header::default(), &claims, &USER_KEY.encoding) {
+                        Ok(token) => Ok((StatusCode::OK, token)),
+                        Err(error) => Err(err_json_gen(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Some(error.to_string()),
+                        )),
+                    }
+                } else {
+                    Err(err_json_gen(StatusCode::UNAUTHORIZED, Some("Account disabled. Please contact system administrator.".to_string())))
                 }
             }
         }
