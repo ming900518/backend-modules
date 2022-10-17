@@ -1,10 +1,8 @@
 #![forbid(unsafe_code)]
 mod service;
 
-use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse};
 use axum::{Extension, Router};
-use base_library::{DEFAULT_FALLBACK_HTML, default_fallback};
+use base_library::default_fallback;
 use dotenvy::dotenv;
 use mimalloc::MiMalloc;
 use sqlx::postgres::PgPoolOptions;

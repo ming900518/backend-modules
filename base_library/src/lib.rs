@@ -8,6 +8,7 @@ use axum::headers::authorization::Bearer;
 use axum::headers::Authorization;
 use axum::http::request::Parts;
 use axum::http::{Request, StatusCode};
+use axum::response::{Html, IntoResponse};
 use axum::{async_trait, Json, TypedHeader};
 use jsonwebtoken::{decode, DecodingKey, EncodingKey, Validation};
 use once_cell::sync::Lazy;
@@ -18,7 +19,6 @@ use sqlx::types::Uuid;
 use sqlx::Error;
 use std::env;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use axum::response::{Html, IntoResponse};
 use time::OffsetDateTime;
 use uuid::{Context, Timestamp};
 
@@ -83,14 +83,18 @@ where
 
         match axum::Json::<T>::from_request(req, state).await {
             Ok(value) => Ok(Self(value.0)),
-            Err(rejection) => {
-                match &rejection {
-                    JsonRejection::JsonDataError(_) => Err(err_json_gen(StatusCode::UNPROCESSABLE_ENTITY, None)),
-                    JsonRejection::JsonSyntaxError(_) => Err(err_json_gen(StatusCode::BAD_REQUEST, None)),
-                    JsonRejection::MissingJsonContentType(_) => Err(err_json_gen(StatusCode::UNSUPPORTED_MEDIA_TYPE, None)),
-                    _ => Err(err_json_gen(StatusCode::INTERNAL_SERVER_ERROR, None)),
+            Err(rejection) => match &rejection {
+                JsonRejection::JsonDataError(_) => {
+                    Err(err_json_gen(StatusCode::UNPROCESSABLE_ENTITY, None))
                 }
-            }
+                JsonRejection::JsonSyntaxError(_) => {
+                    Err(err_json_gen(StatusCode::BAD_REQUEST, None))
+                }
+                JsonRejection::MissingJsonContentType(_) => {
+                    Err(err_json_gen(StatusCode::UNSUPPORTED_MEDIA_TYPE, None))
+                }
+                _ => Err(err_json_gen(StatusCode::INTERNAL_SERVER_ERROR, None)),
+            },
         }
     }
 }
