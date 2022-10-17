@@ -12,10 +12,8 @@ use uuid::Uuid;
 
 use base_library::{
     err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time,
-    pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, Token, KEYS,
+    pagination_offset, default_fallback, Claims, CustomJsonRequest, PaginationParams, PaginationResp, Token, KEYS,
 };
-
-use crate::default_fallback;
 
 pub fn router() -> Router {
     Router::new().nest(

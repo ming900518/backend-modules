@@ -18,6 +18,7 @@ use sqlx::types::Uuid;
 use sqlx::Error;
 use std::env;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use axum::response::{Html, IntoResponse};
 use time::OffsetDateTime;
 use uuid::{Context, Timestamp};
 
@@ -142,6 +143,10 @@ where
             Ok(token_data.claims)
         }
     }
+}
+
+pub async fn default_fallback() -> impl IntoResponse {
+    (StatusCode::NOT_FOUND, Html::from(DEFAULT_FALLBACK_HTML))
 }
 
 pub fn err_json_gen(status_code: StatusCode, reason: Option<String>) -> (StatusCode, Json<Value>) {

@@ -4,7 +4,7 @@ mod service;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
 use axum::{Extension, Router};
-use base_library::DEFAULT_FALLBACK_HTML;
+use base_library::{DEFAULT_FALLBACK_HTML, default_fallback};
 use dotenvy::dotenv;
 use mimalloc::MiMalloc;
 use sqlx::postgres::PgPoolOptions;
@@ -43,8 +43,4 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .expect("Server startup failed.");
-}
-
-async fn default_fallback() -> impl IntoResponse {
-    (StatusCode::NOT_FOUND, Html::from(DEFAULT_FALLBACK_HTML))
 }
