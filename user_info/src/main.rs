@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 mod user_service;
+mod admin_service;
 
 use axum::{Extension, Router};
 use base_library::default_fallback;
@@ -30,6 +31,7 @@ async fn main() {
 
     let app = Router::new()
         .merge(user_service::router())
+        .merge(admin_service::router())
         .layer(Extension(db))
         .fallback(default_fallback);
 
