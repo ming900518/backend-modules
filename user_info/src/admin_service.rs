@@ -30,7 +30,7 @@ struct UserInfo {
     account_rule: i32,
     account_status: bool,
     user_name: String,
-    user_email: Option<String>,
+    user_email: String,
     note: Option<String>,
     #[serde(
     skip_deserializing,

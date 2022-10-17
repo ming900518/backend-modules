@@ -61,7 +61,7 @@
         false,
         false,
         false,
-        true,
+        false,
         true,
         false,
         false
@@ -135,7 +135,7 @@
         false,
         false,
         false,
-        true,
+        false,
         true,
         false,
         false
@@ -217,7 +217,7 @@
         false,
         false,
         false,
-        true,
+        false,
         true,
         false,
         false
@@ -292,7 +292,7 @@
         false,
         false,
         false,
-        true,
+        false,
         true,
         false,
         false
@@ -322,6 +322,85 @@
       }
     },
     "query": "select count(*) from backendmodulesdb.user_info;"
+  },
+  "76007a4a14781127e814fcab6c99a554ed38a30694aeaedfb8c6e279a3f22c7a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "uuid",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "login_account",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "login_password",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "account_rule",
+          "ordinal": 3,
+          "type_info": "Int4"
+        },
+        {
+          "name": "account_status",
+          "ordinal": 4,
+          "type_info": "Bool"
+        },
+        {
+          "name": "user_name",
+          "ordinal": 5,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "user_email",
+          "ordinal": 6,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "note",
+          "ordinal": 7,
+          "type_info": "Text"
+        },
+        {
+          "name": "creation_timestamp",
+          "ordinal": 8,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "update_timestamp",
+          "ordinal": 9,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "Text",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "\n        update backendmodulesdb.user_info\n        set login_password = $2,\n            user_name = $3,\n            user_email = $4,\n            note = $5,\n            update_timestamp = $6\n        where uuid = $1 returning *;\n        "
   },
   "92e7a579d46bb68329512785be1e22007d2c9612327179635d82afa2888fba8d": {
     "describe": {
@@ -384,7 +463,7 @@
         false,
         false,
         false,
-        true,
+        false,
         true,
         false,
         false
@@ -467,7 +546,7 @@
         false,
         false,
         false,
-        true,
+        false,
         true,
         false,
         false
@@ -479,6 +558,86 @@
       }
     },
     "query": "select * from backendmodulesdb.user_info where uuid = $1"
+  },
+  "a84cd529ac29d5ba8e0040e253adc984b2026c7bfdec4a7402d055b5a67a51e1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "uuid",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "login_account",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "login_password",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "account_rule",
+          "ordinal": 3,
+          "type_info": "Int4"
+        },
+        {
+          "name": "account_status",
+          "ordinal": 4,
+          "type_info": "Bool"
+        },
+        {
+          "name": "user_name",
+          "ordinal": 5,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "user_email",
+          "ordinal": 6,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "note",
+          "ordinal": 7,
+          "type_info": "Text"
+        },
+        {
+          "name": "creation_timestamp",
+          "ordinal": 8,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "update_timestamp",
+          "ordinal": 9,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "Varchar",
+          "Timestamptz",
+          "Timestamptz"
+        ]
+      }
+    },
+    "query": "\n            insert into backendmodulesdb.user_info (\n                uuid,\n                login_account,\n                login_password,\n                user_name,\n                user_email,\n                creation_timestamp,\n                update_timestamp\n            )\n            values (\n                $1,\n                $2,\n                $3,\n                $4,\n                $5,\n                $6,\n                $7\n            ) returning *;\n        "
   },
   "cb76fad62ba295370d282fc8a9c249ac21f49468c01bc5f9e2cf46ff3c44ffee": {
     "describe": {

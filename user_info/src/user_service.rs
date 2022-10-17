@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use base_library::{
-    default_fallback, err_json_gen, get_db_err, get_jwt_exp_timestamp, now_local_time, Claims, CustomJsonRequest, UserToken, USER_KEY
+    default_fallback, new_uuid_v1, err_json_gen, get_db_err, get_jwt_exp_timestamp, now_local_time, Claims, CustomJsonRequest, UserToken, USER_KEY
 };
 
 pub fn router() -> Router {
@@ -20,6 +20,7 @@ pub fn router() -> Router {
             .route("/query", get(query))
             .route("/save", put(save))
             .route("/login", post(login))
+            .route("/register", post(register))
             .fallback(default_fallback),
     )
 }
@@ -32,9 +33,8 @@ struct LoginReq {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, sqlx::FromRow)]
 struct UserInfo {
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, default)]
     uuid: Uuid,
-    #[serde(skip_deserializing)]
     login_account: String,
     login_password: String,
     #[serde(skip_deserializing)]
@@ -42,7 +42,7 @@ struct UserInfo {
     #[serde(skip_deserializing)]
     account_status: bool,
     user_name: String,
-    user_email: Option<String>,
+    user_email: String,
     note: Option<String>,
     #[serde(
         skip_deserializing,
@@ -138,7 +138,6 @@ async fn login(
             let successful_count = admin_vec
                 .iter()
                 .filter(|user_info| user_info.login_password == request.password.clone().unwrap())
-                .filter(|user_info| user_info.account_status)
                 .count();
             if successful_count > 1 {
                 Err(err_json_gen(
@@ -165,6 +164,69 @@ async fn login(
                         Some(error.to_string()),
                     )),
                 }
+            }
+        }
+        Err(error) => Err(get_db_err(error)),
+    }
+}
+
+async fn register(
+    Extension(ref db): Extension<Pool<Postgres>>,
+    CustomJsonRequest(request): CustomJsonRequest<UserInfo>,
+) -> impl IntoResponse {
+    match sqlx::query!(
+            "select count(*) from backendmodulesdb.user_info where login_account = $1",
+            request.login_account
+        )
+        .fetch_one(db)
+        .await
+    {
+        Ok(record) => {
+            if record.count.unwrap() == 0 {
+                let query = sqlx::query_as!(
+                        UserInfo,
+                        r#"
+            insert into backendmodulesdb.user_info (
+                uuid,
+                login_account,
+                login_password,
+                user_name,
+                user_email,
+                creation_timestamp,
+                update_timestamp
+            )
+            values (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7
+            ) returning *;
+        "#,
+                        Uuid::from(new_uuid_v1()),
+                        request.login_account,
+                        request.login_password,
+                        request.user_name,
+                        request.user_email,
+                        request.creation_timestamp,
+                        request.update_timestamp
+                    )
+                    .fetch_one(db)
+                    .await;
+                match query {
+                    Ok(result) => Ok(Json::from(json!(result))),
+                    Err(error) => Err(get_db_err(error)),
+                }
+            } else {
+                Err(err_json_gen(
+                    StatusCode::CONFLICT,
+                    Some(
+                        "Account with same name existed, please specify another name."
+                            .to_string(),
+                    ),
+                ))
             }
         }
         Err(error) => Err(get_db_err(error)),
