@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-mod service;
+mod user_service;
 
 use axum::{Extension, Router};
 use base_library::default_fallback;
@@ -29,7 +29,7 @@ async fn main() {
         .expect("Database connection failed.");
 
     let app = Router::new()
-        .merge(service::router())
+        .merge(user_service::router())
         .layer(Extension(db))
         .fallback(default_fallback);
 

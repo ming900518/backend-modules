@@ -46,8 +46,13 @@ pub const GATEWAY_TIMEOUT_MSG: &str = "The server didn't respond in time. Please
 
 pub const INTERNAL_SERVER_ERROR_MSG: &str = "The server encountered an internal error or misconfiguration and was unable to complete your request. Please contact the server administrator, mail@mingchang.tw and inform them of the time the error occurred, and anything you might have done that may have caused the error.";
 
-pub static KEYS: Lazy<Keys> = Lazy::new(|| {
-    let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "7W0nwzmIeFBj6gd-tZpwHw7tTZ8KJ9vp0fvhU9chRqcD74dPJy_KV_cqxFyjpmvEC0AJSENbMC5Pq03BfIA4mLR3pd_h1vKoB4mestDn0cx6gKULZXBVSTa3fUdvxGzDxY_IDRUUlpGRWp6loprqyvliO8aw0BzkN2BPD8qRN8M".to_owned());
+pub static ADMIN_KEY: Lazy<Keys> = Lazy::new(|| {
+    let secret = env::var("ADMIN_JWT_SECRET").unwrap_or_else(|_| "7W0nwzmIeFBj6gd-tZpwHw7tTZ8KJ9vp0fvhU9chRqcD74dPJy_KV_cqxFyjpmvEC0AJSENbMC5Pq03BfIA4mLR3pd_h1vKoB4mestDn0cx6gKULZXBVSTa3fUdvxGzDxY_IDRUUlpGRWp6loprqyvliO8aw0BzkN2BPD8qRN8M".to_owned());
+    Keys::new(secret.as_bytes())
+});
+
+pub static USER_KEY: Lazy<Keys> = Lazy::new(|| {
+    let secret = env::var("USER_JWT_SECRET").unwrap_or_else(|_| "8W0nwzmIeFBj6gd-tZpwHw7tTZ8KJ9vp0fvhU9chRqcD74dPJy_KV_cqxFyjpmvEC0AJSENbMC5Pq03BfIA4mLR3pd_h1vKoB4mestDn0cx6gKULZXBVSTa3fUdvxGzDxY_IDRUUlpGRWp6loprqyvliO8aw0BzkN2BPD8qRN9N".to_owned());
     Keys::new(secret.as_bytes())
 });
 
@@ -106,10 +111,10 @@ pub struct Claims {
 }
 
 #[derive(Deserialize)]
-pub struct Token(pub Claims);
+pub struct AdminToken(pub Claims);
 
 #[async_trait]
-impl<S> FromRequestParts<S> for Token
+impl<S> FromRequestParts<S> for AdminToken
 where
     S: Send + Sync,
 {
@@ -125,7 +130,7 @@ where
                         Some("Unable to extract token from request. Please log in.".to_string()),
                     )
                 })?;
-        let token_data = decode::<Token>(bearer.token(), &KEYS.decoding, &Validation::default())
+        let token_data = decode::<AdminToken>(bearer.token(), &ADMIN_KEY.decoding, &Validation::default())
             .map_err(|_| {
                 err_json_gen(
                     StatusCode::UNAUTHORIZED,
@@ -138,6 +143,50 @@ where
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_secs()
+        {
+            Err(err_json_gen(
+                StatusCode::UNAUTHORIZED,
+                Some("Token expired, please log in again.".to_string()),
+            ))
+        } else {
+            Ok(token_data.claims)
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct UserToken(pub Claims);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for UserToken
+    where
+        S: Send + Sync,
+{
+    type Rejection = (StatusCode, Json<Value>);
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let TypedHeader(Authorization(bearer)) =
+            TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
+                .await
+                .map_err(|_| {
+                    err_json_gen(
+                        StatusCode::UNAUTHORIZED,
+                        Some("Unable to extract token from request. Please log in.".to_string()),
+                    )
+                })?;
+        let token_data = decode::<UserToken>(bearer.token(), &USER_KEY.decoding, &Validation::default())
+            .map_err(|_| {
+                err_json_gen(
+                    StatusCode::UNAUTHORIZED,
+                    Some("Unable to parse token.".to_string()),
+                )
+            })?;
+
+        if token_data.claims.0.exp
+            < SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
         {
             Err(err_json_gen(
                 StatusCode::UNAUTHORIZED,

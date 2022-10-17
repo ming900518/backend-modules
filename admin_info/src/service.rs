@@ -10,10 +10,7 @@ use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use base_library::{
-    default_fallback, err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time,
-    pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, Token, KEYS,
-};
+use base_library::{default_fallback, err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time, pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, AdminToken, ADMIN_KEY};
 
 pub fn router() -> Router {
     Router::new().nest(
@@ -61,7 +58,7 @@ struct AdminInfo {
 
 /// 查詢管理員資訊
 async fn query(
-    Token(_): Token,
+    AdminToken(_): AdminToken,
     Extension(ref db): Extension<Pool<Postgres>>,
     Path(search_uuid): Path<Uuid>,
 ) -> impl IntoResponse {
@@ -80,7 +77,7 @@ async fn query(
 
 /// 查詢管理員列表（分頁查詢，無提供參數則使用預設值）
 async fn list(
-    Token(_): Token,
+    AdminToken(_): AdminToken,
     Extension(ref db): Extension<Pool<Postgres>>,
     Query(params): Query<PaginationParams>,
 ) -> impl IntoResponse {
@@ -114,7 +111,7 @@ async fn list(
 
 /// 儲存管理員資訊（有提供UUID的情況更新，無則新增）
 async fn save(
-    Token(_): Token,
+    AdminToken(_): AdminToken,
     Extension(ref db): Extension<Pool<Postgres>>,
     CustomJsonRequest(params): CustomJsonRequest<AdminInfo>,
 ) -> impl IntoResponse {
@@ -221,7 +218,7 @@ async fn save(
 
 /// 移除管理員
 async fn remove(
-    Token(_): Token,
+    AdminToken(_): AdminToken,
     Extension(ref db): Extension<Pool<Postgres>>,
     Path(uuid): Path<Uuid>,
 ) -> impl IntoResponse {
@@ -288,7 +285,7 @@ async fn login(
                     uuid: admin_vec.first().unwrap().uuid.to_owned(),
                     exp: get_jwt_exp_timestamp(),
                 };
-                match encode(&Header::default(), &claims, &KEYS.encoding) {
+                match encode(&Header::default(), &claims, &ADMIN_KEY.encoding) {
                     Ok(token) => Ok((StatusCode::OK, token)),
                     Err(error) => Err(err_json_gen(
                         StatusCode::INTERNAL_SERVER_ERROR,
