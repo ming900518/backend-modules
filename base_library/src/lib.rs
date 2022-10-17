@@ -134,7 +134,7 @@ where
             .map_err(|_| {
                 err_json_gen(
                     StatusCode::UNAUTHORIZED,
-                    Some("Unable to parse token.".to_string()),
+                    Some("Unable to parse token. This API needs a token for an administrator.".to_string()),
                 )
             })?;
 
@@ -178,7 +178,7 @@ impl<S> FromRequestParts<S> for UserToken
             .map_err(|_| {
                 err_json_gen(
                     StatusCode::UNAUTHORIZED,
-                    Some("Unable to parse token.".to_string()),
+                    Some("Unable to parse token. This API needs a token for an user.".to_string()),
                 )
             })?;
 
