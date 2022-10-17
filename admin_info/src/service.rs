@@ -242,7 +242,7 @@ async fn remove(
 
 async fn login(
     Extension(ref db): Extension<Pool<Postgres>>,
-    Json(request): Json<LoginReq>,
+    CustomJsonRequest(request): CustomJsonRequest<LoginReq>,
 ) -> impl IntoResponse {
     let account_empty = request.account.is_none();
     let password_empty = request.password.is_none();
