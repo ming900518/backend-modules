@@ -10,19 +10,30 @@ use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use base_library::{default_fallback, err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time, pagination_offset, Claims, CustomJsonRequest, PaginationParams, PaginationResp, AdminToken, ADMIN_KEY};
+use base_library::{
+    default_fallback, err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time,
+    pagination_offset, AdminToken, Claims, CustomJsonRequest, PaginationParams, PaginationResp,
+    ADMIN_KEY,
+};
 
 pub fn router() -> Router {
-    Router::new().nest(
-        "/admin",
-        Router::new()
-            .route("/list", get(list))
-            .route("/query/:uuid", get(query))
-            .route("/save", put(save))
-            .route("/delete/:uuid", delete(remove))
-            .route("/login", post(login))
-            .fallback(default_fallback),
-    )
+    Router::new()
+        .nest(
+            "/admin",
+            Router::new()
+                .route("/login", post(login))
+                .fallback(default_fallback),
+        )
+        .nest(
+            "/admin/management",
+            Router::new()
+                .route("/list", get(list))
+                .route("/query/:uuid", get(query))
+                .route("/save", put(save))
+                .route("/delete/:uuid", delete(remove))
+                .route("/login", post(login))
+                .fallback(default_fallback),
+        )
 }
 
 #[derive(Deserialize)]
