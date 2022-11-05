@@ -14,5 +14,6 @@
 - base_library：共用Library，以下的每一個模組都依賴此crate。
 - admin_info：提供管理員帳號的CRUD與登入功能（JWT）。
 - user_info：提供用戶帳號的CRUD與登入功能（JWT）。
+- notification：提供Email寄送與Apple Push Notification推播通知功能。
 
 （持續更新）
