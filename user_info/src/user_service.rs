@@ -10,7 +10,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use base_library::{
-    default_fallback, new_uuid_v1, err_json_gen, get_db_err, get_jwt_exp_timestamp, now_local_time, Claims, CustomJsonRequest, UserToken, USER_KEY
+    default_fallback, err_json_gen, get_db_err, get_jwt_exp_timestamp, new_uuid_v1, now_local_time,
+    Claims, CustomJsonRequest, UserToken, USER_KEY,
 };
 
 pub fn router() -> Router {
@@ -61,7 +62,7 @@ struct UserInfo {
 /// 查詢用戶資訊（用戶）
 async fn query(
     UserToken(user_token): UserToken,
-    Extension(ref db): Extension<Pool<Postgres>>
+    Extension(ref db): Extension<Pool<Postgres>>,
 ) -> impl IntoResponse {
     match sqlx::query_as!(
         UserInfo,
@@ -82,9 +83,9 @@ async fn save(
     Extension(ref db): Extension<Pool<Postgres>>,
     CustomJsonRequest(params): CustomJsonRequest<UserInfo>,
 ) -> impl IntoResponse {
-        let query = sqlx::query_as!(
-            UserInfo,
-            r#"
+    let query = sqlx::query_as!(
+        UserInfo,
+        r#"
         update backendmodulesdb.user_info
         set login_password = $2,
             user_name = $3,
@@ -93,19 +94,19 @@ async fn save(
             update_timestamp = $6
         where uuid = $1 returning *;
         "#,
-            user_token.uuid,
-            params.login_password,
-            params.user_name,
-            params.user_email,
-            params.note,
-            params.update_timestamp
-        )
-        .fetch_one(db)
-        .await;
-        match query {
-            Ok(result) => Ok(Json::from(json!(result))),
-            Err(error) => Err(get_db_err(error)),
-        }
+        user_token.uuid,
+        params.login_password,
+        params.user_name,
+        params.user_email,
+        params.note,
+        params.update_timestamp
+    )
+    .fetch_one(db)
+    .await;
+    match query {
+        Ok(result) => Ok(Json::from(json!(result))),
+        Err(error) => Err(get_db_err(error)),
+    }
 }
 
 async fn login(
@@ -166,8 +167,11 @@ async fn login(
                         )),
                     }
                 } else {
-                    Err(err_json_gen(StatusCode::UNAUTHORIZED, Some("Account disabled. Please contact system administrator.".to_string())))
-                }
+                    Err(err_json_gen(
+                        StatusCode::UNAUTHORIZED,
+                        Some("Account disabled. Please contact system administrator.".to_string()),
+                    ))
+                };
             }
         }
         Err(error) => Err(get_db_err(error)),
@@ -179,17 +183,17 @@ async fn register(
     CustomJsonRequest(request): CustomJsonRequest<UserInfo>,
 ) -> impl IntoResponse {
     match sqlx::query!(
-            "select count(*) from backendmodulesdb.user_info where login_account = $1",
-            request.login_account
-        )
-        .fetch_one(db)
-        .await
+        "select count(*) from backendmodulesdb.user_info where login_account = $1",
+        request.login_account
+    )
+    .fetch_one(db)
+    .await
     {
         Ok(record) => {
             if record.count.unwrap() == 0 {
                 let query = sqlx::query_as!(
-                        UserInfo,
-                        r#"
+                    UserInfo,
+                    r#"
             insert into backendmodulesdb.user_info (
                 uuid,
                 login_account,
@@ -209,16 +213,16 @@ async fn register(
                 $7
             ) returning *;
         "#,
-                        Uuid::from(new_uuid_v1()),
-                        request.login_account,
-                        request.login_password,
-                        request.user_name,
-                        request.user_email,
-                        request.creation_timestamp,
-                        request.update_timestamp
-                    )
-                    .fetch_one(db)
-                    .await;
+                    Uuid::from(new_uuid_v1()),
+                    request.login_account,
+                    request.login_password,
+                    request.user_name,
+                    request.user_email,
+                    request.creation_timestamp,
+                    request.update_timestamp
+                )
+                .fetch_one(db)
+                .await;
                 match query {
                     Ok(result) => Ok(Json::from(json!(result))),
                     Err(error) => Err(get_db_err(error)),
@@ -227,8 +231,7 @@ async fn register(
                 Err(err_json_gen(
                     StatusCode::CONFLICT,
                     Some(
-                        "Account with same name existed, please specify another name."
-                            .to_string(),
+                        "Account with same name existed, please specify another name.".to_string(),
                     ),
                 ))
             }

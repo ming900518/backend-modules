@@ -130,13 +130,17 @@ where
                         Some("Unable to extract token from request. Please log in.".to_string()),
                     )
                 })?;
-        let token_data = decode::<AdminToken>(bearer.token(), &ADMIN_KEY.decoding, &Validation::default())
-            .map_err(|_| {
-                err_json_gen(
-                    StatusCode::UNAUTHORIZED,
-                    Some("Unable to parse token. This API needs a token for an administrator.".to_string()),
-                )
-            })?;
+        let token_data =
+            decode::<AdminToken>(bearer.token(), &ADMIN_KEY.decoding, &Validation::default())
+                .map_err(|_| {
+                    err_json_gen(
+                        StatusCode::UNAUTHORIZED,
+                        Some(
+                            "Unable to parse token. This API needs a token for an administrator."
+                                .to_string(),
+                        ),
+                    )
+                })?;
 
         if token_data.claims.0.exp
             < SystemTime::now()
@@ -159,8 +163,8 @@ pub struct UserToken(pub Claims);
 
 #[async_trait]
 impl<S> FromRequestParts<S> for UserToken
-    where
-        S: Send + Sync,
+where
+    S: Send + Sync,
 {
     type Rejection = (StatusCode, Json<Value>);
 
@@ -174,19 +178,23 @@ impl<S> FromRequestParts<S> for UserToken
                         Some("Unable to extract token from request. Please log in.".to_string()),
                     )
                 })?;
-        let token_data = decode::<UserToken>(bearer.token(), &USER_KEY.decoding, &Validation::default())
-            .map_err(|_| {
-                err_json_gen(
-                    StatusCode::UNAUTHORIZED,
-                    Some("Unable to parse token. This API needs a token for an user.".to_string()),
-                )
-            })?;
+        let token_data =
+            decode::<UserToken>(bearer.token(), &USER_KEY.decoding, &Validation::default())
+                .map_err(|_| {
+                    err_json_gen(
+                        StatusCode::UNAUTHORIZED,
+                        Some(
+                            "Unable to parse token. This API needs a token for an user."
+                                .to_string(),
+                        ),
+                    )
+                })?;
 
         if token_data.claims.0.exp
             < SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
         {
             Err(err_json_gen(
                 StatusCode::UNAUTHORIZED,

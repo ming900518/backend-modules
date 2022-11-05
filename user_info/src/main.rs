@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
-mod user_service;
 mod admin_service;
+mod user_service;
 
 use axum::{Extension, Router};
 use base_library::default_fallback;

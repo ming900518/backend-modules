@@ -1,14 +1,17 @@
-use axum::{Extension, Json, Router};
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::routing::{get, put, delete};
+use axum::routing::{delete, get, put};
+use axum::{Extension, Json, Router};
+use base_library::{
+    default_fallback, err_json_gen, get_db_err, new_uuid_v1, now_local_time, pagination_offset,
+    AdminToken, CustomJsonRequest, PaginationParams, PaginationResp,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{Pool, Postgres};
 use time::OffsetDateTime;
 use uuid::Uuid;
-use base_library::{AdminToken, CustomJsonRequest, default_fallback, err_json_gen, get_db_err, now_local_time, pagination_offset, PaginationParams, PaginationResp, new_uuid_v1};
 
 pub fn router() -> Router {
     Router::new().nest(
@@ -33,15 +36,15 @@ struct UserInfo {
     user_email: String,
     note: Option<String>,
     #[serde(
-    skip_deserializing,
-    default = "now_local_time",
-    with = "time::serde::iso8601"
+        skip_deserializing,
+        default = "now_local_time",
+        with = "time::serde::iso8601"
     )]
     creation_timestamp: OffsetDateTime,
     #[serde(
-    skip_deserializing,
-    default = "now_local_time",
-    with = "time::serde::iso8601"
+        skip_deserializing,
+        default = "now_local_time",
+        with = "time::serde::iso8601"
     )]
     update_timestamp: OffsetDateTime,
 }
@@ -56,8 +59,8 @@ async fn query(
         "select * from backendmodulesdb.user_info where uuid = $1",
         search_uuid
     )
-        .fetch_one(db)
-        .await
+    .fetch_one(db)
+    .await
     {
         Ok(user_info) => Ok(Json::from(json!(user_info))),
         Err(error) => Err(get_db_err(error)),
@@ -109,8 +112,8 @@ async fn save(
             "select count(*) from backendmodulesdb.user_info where login_account = $1",
             params.login_account
         )
-            .fetch_one(db)
-            .await
+        .fetch_one(db)
+        .await
         {
             Ok(record) => {
                 if record.count.unwrap() == 0 {
@@ -153,8 +156,8 @@ async fn save(
                         params.creation_timestamp,
                         params.update_timestamp
                     )
-                        .fetch_one(db)
-                        .await;
+                    .fetch_one(db)
+                    .await;
                     match query {
                         Ok(result) => Ok(Json::from(json!(result))),
                         Err(error) => Err(get_db_err(error)),
@@ -196,8 +199,8 @@ async fn save(
             params.note,
             params.update_timestamp
         )
-            .fetch_one(db)
-            .await;
+        .fetch_one(db)
+        .await;
         match query {
             Ok(result) => Ok(Json::from(json!(result))),
             Err(error) => Err(get_db_err(error)),
@@ -216,12 +219,10 @@ async fn remove(
         "delete from backendmodulesdb.user_info where uuid = $1 returning *;",
         uuid
     )
-        .fetch_one(db)
-        .await
+    .fetch_one(db)
+    .await
     {
         Ok(user_info) => Ok((StatusCode::OK, user_info.uuid.to_string())),
         Err(error) => Err(get_db_err(error)),
     }
 }
-
-

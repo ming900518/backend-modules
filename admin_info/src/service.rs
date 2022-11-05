@@ -304,8 +304,11 @@ async fn login(
                         )),
                     }
                 } else {
-                    Err(err_json_gen(StatusCode::UNAUTHORIZED, Some("Account disabled. Please contact system administrator.".to_string())))
-                }
+                    Err(err_json_gen(
+                        StatusCode::UNAUTHORIZED,
+                        Some("Account disabled. Please contact system administrator.".to_string()),
+                    ))
+                };
             }
         }
         Err(error) => Err(get_db_err(error)),

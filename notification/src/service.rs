@@ -93,9 +93,7 @@ fn sent_email(email: Message) -> (StatusCode, Json<Value>) {
                 .port(465)
                 .credentials(creds)
                 .build();
-            task::spawn(async move {
-                mailer.send(&email)
-            });
+            task::spawn(async move { mailer.send(&email) });
             (StatusCode::OK, Json(Value::default()))
         }
         false => err_json_gen(
