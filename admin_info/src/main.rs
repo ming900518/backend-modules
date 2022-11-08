@@ -20,7 +20,7 @@ async fn main() {
 
     let db = PgPoolOptions::new()
         .max_connections(80)
-        .connect(&*format!(
+        .connect(&format!(
             "postgresql://{}:{}@localhost:5432/postgres",
             env::var("DB_USER").unwrap_or_else(|_| "postgres".parse().unwrap()),
             env::var("DB_PASS").unwrap_or_else(|_| "postgres".parse().unwrap())
