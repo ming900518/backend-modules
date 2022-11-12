@@ -1,0 +1,32 @@
+[package]
+name = "chat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Base Dependency, which contains utilities and constants needed for this module,
+base_library = { path = "../base_library" }
+
+axum = { version = "0.6.0-rc.4", features = ["headers", "ws"] }
+tokio = { version = "1.21.1", features = ["full"] }
+tracing = "0.1.36"
+tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
+dotenvy = "0.15.5"
+serde = { version = "1.0.145", features = ["derive"] }
+serde_json = "1.0.85"
+uuid = { version = "1.1.2", features = ["serde", "v1"] }
+futures = "0.3.25"
+
+# Redis
+r2d2 = "0.8.10"
+redis = { version = "0.22.1", features = ["ahash", "tokio-comp", "streams", "r2d2"] }
+
+# Memory Allocation
+mimalloc = { version = "*", default-features = false }
+
+[profile.release]
+strip = true
+lto = "fat"
+opt-level = 3
+codegen-units = 1
+panic = "abort"
