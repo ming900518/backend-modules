@@ -12,13 +12,12 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 // Modified from https://github.com/tokio-rs/axum/blob/main/examples/chat/src/main.rs
-// Add: Chat Room Support, Redis Cache Support (NDY).
+// Add: Chat Room Support, Redis Cache Support (TBD).
 
 #[derive(Deserialize)]
 struct FirstMsg {
     user_uuid: Uuid,
-    chatroom_uuid: Option<Uuid>,
-    _latest_msg_id: Option<String>,
+    chatroom_uuid: Option<Uuid>
 }
 
 pub async fn websocket_handler(
@@ -93,9 +92,6 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<AppState>>) {
     let cloned_chatroom_uuid = chatroom_uuid.clone();
     let cloned_user_uuid = user_uuid.clone();
 
-    println!("{cloned_chatroom_uuid}");
-    println!("{:#?}", state.try_lock().unwrap().tx);
-
     // Subscribe before sending joined message.
     let mut rx = state
         .try_lock()
@@ -110,7 +106,6 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<AppState>>) {
     // Send joined message to all subscribers.
     let msg = format!("{} joined.", user_uuid);
     tracing::debug!("{}", msg);
-    println!("{:#?}", state.try_lock().unwrap().tx.try_lock().unwrap());
     let _ = state
         .try_lock()
         .unwrap()
@@ -168,5 +163,4 @@ fn prepare_connection(state: &Mutex<AppState>, chatroom_uuid: &String, user_uuid
     };
     new_user_set.insert(user_uuid.parse().unwrap());
     chatroom_set.insert(chatroom_uuid.clone(), new_user_set);
-    println!("{:#?}", chatroom_set);
 }

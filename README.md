@@ -17,5 +17,7 @@
 - notification：提供Email寄送與Apple Push Notification推播通知功能。
 - chat：透過WebSocket提供聊天室服務（需搭配user_info服務使用，使用Redis緩存）。
     > Docker Redis指令：`docker run --name redis -p 6379:6379 -p 16379:16379 -d redis redis-server --save 60 1 --loglevel warning`
+  
+    > 用戶加入WebSocket，需要先傳送以下JSON加入聊天室：`{"user_uuid": "（填入用戶的UUID，不得為空）", "chatroom_uuid": "（填入聊天室的UUID，如需產生新聊天室可填null）"}`
 
 （持續更新）
